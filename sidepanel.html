@@ -90,7 +90,7 @@
         .main-content-area { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         
         /* Column content - scrollable area */
-        .column-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; min-height: 0; }
+        .column-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 4px; min-height: 0; }
         
         /* Containers */
         .todos-container { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; position: relative; }
@@ -174,7 +174,7 @@
         /* Todo Items */
         .todos-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 16px; }
         .todo-item { 
-            display: flex; gap: 8px; padding: 8px 10px; 
+            display: flex; gap: 8px; padding: 8px 6px; 
             background: var(--bg-card); border-radius: 8px; 
             border: 1px solid var(--border-color); transition: all 0.2s; 
             animation: fadeInUp 0.3s ease-out; cursor: pointer;
@@ -442,7 +442,7 @@
             <h1>Oracle</h1>
             <div class="header-right">
                 <div class="header-icon-btn" id="newMessageToggle" title="New Message">✚</div>
-                <div class="header-icon-btn" id="chatToggle" title="Oracle Assistant">💬</div>
+                <div class="header-icon-btn" id="chatToggle" title="Oracle Assistant" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;overflow:hidden;background:linear-gradient(45deg,#667eea,#764ba2);"><img src="icon-oracle.png" style="width:24px;height:24px;border-radius:50%;object-fit:cover;"></div>
                 <div class="header-icon-btn" id="darkModeToggle" title="Toggle dark mode">☀️</div>
                 <button class="logout-btn" id="logoutBtn" title="Logout" style="display: none;">⎋</button>
             </div>
@@ -470,7 +470,7 @@
     </div>
     
     <!-- Shared components (order matters — dependencies first) -->
-    <script src="ably.min.js"></script>
+    <!-- V38: Ably removed, using native streaming -->
     <script src="shared/oracle-common.js"></script>
     <script src="shared/oracle-icons.js"></script>
     <script src="shared/oracle-grouping.js"></script>

@@ -106,29 +106,27 @@
       state.readTaskIds.add(idStr);
       saveReadState();
     }
-    // Always update UI — find all DOM elements for this task and ensure unread is removed
+    // Always update UI — find ALL DOM elements for this task and ensure unread is removed
     const selectors = [
       `.todo-item[data-todo-id="${todoId}"]`,
       `.task-group-task-item[data-todo-id="${todoId}"]`,
       `.slack-channel-task-item[data-todo-id="${todoId}"]`,
       `.document-task-item[data-todo-id="${todoId}"]`
     ];
-    let anyElementFound = false;
     selectors.forEach(sel => {
-      const el = document.querySelector(sel);
-      if (el) {
+      document.querySelectorAll(sel).forEach(el => {
         el.classList.remove('unread');
-        anyElementFound = true;
         checkParentGroupReadState(el);
-      }
+      });
     });
   }
 
   // Check if all tasks in a parent group are now read; if so, remove group's unread class
+  // Also update the group's task count display
   function checkParentGroupReadState(taskElement) {
     const group = taskElement.closest('.task-group, .slack-channel-group, .slack-channel-accordion-item, .document-accordion-item, .fyi-tag-group, .tag-group');
     if (!group) return;
-    const unreadChildren = group.querySelectorAll('.todo-item.unread, .task-group-task-item.unread, .slack-channel-task-item.unread, .slack-channel-task-full.unread');
+    const unreadChildren = group.querySelectorAll('.todo-item.unread, .task-group-task-item.unread, .slack-channel-task-item.unread, .slack-channel-task-full.unread, .document-task-item.unread');
     if (unreadChildren.length === 0) {
       group.classList.remove('unread');
       // Also check if this is inside a Slack Channels accordion
@@ -138,6 +136,26 @@
         if (anyUnreadChannels.length === 0) {
           slackAccordion.classList.remove('has-unread');
         }
+      }
+      // Also check if this is inside a Documents accordion
+      const docsAccordion = group.closest('.documents-accordion');
+      if (docsAccordion) {
+        const anyUnreadDocs = docsAccordion.querySelectorAll('.document-accordion-item.unread');
+        if (anyUnreadDocs.length === 0) {
+          docsAccordion.classList.remove('has-unread');
+        }
+      }
+    }
+    // Update the group's visible task count (subtract completed/removed tasks)
+    const countEl = group.querySelector('.task-group-count, .slack-channel-item-meta');
+    if (countEl) {
+      const totalTasks = group.querySelectorAll('.todo-item:not(.completing):not([style*="display: none"]), .task-group-task-item:not(.completing):not([style*="display: none"]), .slack-channel-task-item:not(.completing):not([style*="display: none"]), .document-task-item:not(.completing):not([style*="display: none"])');
+      // Only update if count element has the standard format
+      const currentText = countEl.textContent;
+      const countMatch = currentText.match(/^(\d+)\s+(action item|item|task|update)/);
+      if (countMatch) {
+        const label = countMatch[2];
+        countEl.textContent = currentText.replace(/^\d+/, totalTasks.length);
       }
     }
   }

@@ -119,32 +119,8 @@ async function checkAndScheduleNotifications() {
     });
 
     if (response.ok) {
-      const data = await response.json();
-      const todos = Array.isArray(data) ? data : (data.todos || []);
-
-      // Update badge based on overdue/starred count
-      const now = new Date();
-      const overdueTodos = todos.filter(todo =>
-        todo.status === 0 &&
-        todo.due_by &&
-        new Date(todo.due_by) < now
-      );
-
-      const overdueCount = overdueTodos.length;
-
-      if (overdueCount > 0) {
-        chrome.action.setBadgeText({ text: overdueCount.toString() });
-        chrome.action.setBadgeBackgroundColor({ color: "#e74c3c" });
-      } else {
-        const starredCount = todos.filter(todo => todo.starred === 1 || todo.starred === true).length;
-
-        if (starredCount > 0) {
-          chrome.action.setBadgeText({ text: starredCount.toString() });
-          chrome.action.setBadgeBackgroundColor({ color: "#667eea" });
-        } else {
-          chrome.action.setBadgeText({ text: "" });
-        }
-      }
+      // Badge is now driven by unread counts from sidepanel/newtab via updateBadge message
+      // No badge update here to avoid overwriting unread-based badge
     }
   } catch (error) {
     console.error('Error checking todos:', error);
@@ -166,6 +142,19 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
 
 // Handle messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openTaskTranscript') {
+    // Find the newtab page and send the task ID to open transcript slider
+    chrome.tabs.query({}, (tabs) => {
+      const newtab = tabs.find(t => t.url && t.url.includes('chrome-extension://') && t.url.includes('newtab.html'));
+      if (newtab) {
+        chrome.tabs.sendMessage(newtab.id, { action: 'openTaskTranscript', taskId: request.taskId }).catch(() => {});
+        chrome.tabs.update(newtab.id, { active: true });
+      }
+    });
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (request.action === 'refreshTodoList') {
     // Refresh badge and notify any open panels to refresh
     checkAndScheduleNotifications().then(() => {
@@ -286,7 +275,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!userData) {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icon.png',
+      iconUrl: 'icon-oracle.png',
       title: 'Oracle - Authentication Required',
       message: 'Please open Oracle popup or new tab to log in first.',
       requireInteraction: true
@@ -497,7 +486,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       if (info.menuItemId !== 'oracle-fd-ticket-summary') {
         chrome.notifications.create({
           type: 'basic',
-          iconUrl: 'icon.png',
+          iconUrl: 'icon-oracle.png',
           title: `Oracle - ${actionText}`,
           message: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''),
           requireInteraction: true
@@ -545,7 +534,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'icon.png',
+      iconUrl: 'icon-oracle.png',
       title: 'Oracle Workflow Error',
       message: `Error: ${error.message}`
     });
@@ -637,6 +626,17 @@ function connectAblyWebSocket(userId) {
             await handleTodoDeleted(messageData);
           } else if (data.name === 'bookmark_created') {
             await handleBookmarkCreated(messageData);
+          } else if (data.name === 'system-message') {
+            // Forward system messages (e.g. extracted_query from transcript) to all tabs
+            const tabs = await chrome.tabs.query({});
+            for (const tab of tabs) {
+              try {
+                await chrome.tabs.sendMessage(tab.id, {
+                  action: 'oracleSystemMessage',
+                  data: messageData
+                });
+              } catch { /* tab may not have content script */ }
+            }
           }
         }
       } catch (error) {
@@ -744,6 +744,24 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // Handle messages that might wake up the service worker
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Update extension badge with unread counts
+  if (request.type === 'updateBadge') {
+    const { actionUnread, fyiUnread } = request;
+    if (actionUnread > 0) {
+      // Red badge shows ONLY action item count
+      chrome.action.setBadgeText({ text: String(actionUnread) });
+      chrome.action.setBadgeBackgroundColor({ color: '#e74c3c' });
+    } else if (fyiUnread > 0) {
+      // Yellow badge shows FYI count only when no action items
+      chrome.action.setBadgeText({ text: String(fyiUnread) });
+      chrome.action.setBadgeBackgroundColor({ color: '#f1c40f' });
+    } else {
+      chrome.action.setBadgeText({ text: '' });
+    }
+    sendResponse({ ok: true });
+    return false;
+  }
+
   // Ensure Ably is connected when service worker wakes up
   if (!ablyWebSocket || ablyWebSocket.readyState !== EventSource.OPEN) {
     console.log('🔄 Message received, checking Ably connection...');

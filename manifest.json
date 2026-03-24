@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Oracle",
-  "version": "1.2",
+  "version": "1.41",
   "description": "AI-powered Chrome extension with real-time push notifications",
   "icons": {
     "16": "icon-oracle.png",
@@ -20,11 +20,7 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "https://n8n-kqq5.onrender.com/*",
-    "https://realtime.ably.io/*",
-    "https://rest.ably.io/*",
-    "wss://realtime.ably.io/*",
-    "https://*.ably.com/*"
+    "https://n8n-kqq5.onrender.com/*"
   ],
   "action": {
     "default_title": "Oracle",
@@ -57,6 +53,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "icon-oracle.png",
         "icon-slack.png",
         "icon-gmail.png",
         "icon-drive.png",

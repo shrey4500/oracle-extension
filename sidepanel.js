@@ -3,7 +3,7 @@
 const WEBHOOK_URL = 'https://n8n-kqq5.onrender.com/webhook/d60909cd-7ae4-431e-9c4f-0c9cacfa20ea';
 const AUTH_URL = 'https://n8n-kqq5.onrender.com/webhook/e6bcd2c3-c714-46c7-94b8-8aeb9831429c';
 const CHAT_WEBHOOK_URL = 'https://n8n-kqq5.onrender.com/webhook/ffe7e366-078a-4320-aa3b-504458d1d9a4';
-const ABLY_CHAT_API_KEY = 'IROXlg.Pr4FZw:5pU-xl09axAY1_jHcnegOd6aJQBXXCiCfAjVXOAQzZI'; window.ABLY_CHAT_API_KEY = ABLY_CHAT_API_KEY; // Replace with your Ably API key
+// V38: Ably removed — using native n8n webhook streaming
 const STORAGE_KEY = 'oracle_user_data';
 const READ_TASKS_KEY = 'oracle_read_tasks';
 const TASK_TIMESTAMPS_KEY = 'oracle_task_timestamps';
@@ -87,6 +87,29 @@ function showLoginScreen() {
   });
 }
 
+// ==================== TYPE ICON HELPER ====================
+function getTypeIconHtml(type) {
+  if (!type) return '';
+  const isThread = type === 'slack_thread' || type === 'gmail_email_thread';
+  const color = '#667eea';
+  if (isThread) {
+    return `<span class="task-type-icon" title="Thread" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;opacity:0.6;flex-shrink:0;color:${color};">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 6h10"/><path d="M9 12h10"/><path d="M9 18h10"/>
+        <circle cx="4" cy="6" r="1.5" fill="${color}" stroke="none"/>
+        <circle cx="4" cy="12" r="1.5" fill="${color}" stroke="none"/>
+        <circle cx="4" cy="18" r="1.5" fill="${color}" stroke="none"/>
+      </svg>
+    </span>`;
+  } else {
+    return `<span class="task-type-icon" title="Message" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;opacity:0.6;flex-shrink:0;color:${color};">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </span>`;
+  }
+}
+
 // ==================== RENDER TODO ITEM (no star, no edit, with secondary links) ====================
 function renderTodoItemHtml(todo) {
   const isUnread = isTaskUnread(todo.id) && !isInitialLoad;
@@ -104,6 +127,7 @@ function renderTodoItemHtml(todo) {
   const fullTextAttr = isLong ? ` data-full-text="${escapeHtml(text)}"` : '';
   const viewMoreHtml = isLong ? `<span class="view-more-inline" data-todo-id="${todo.id}">View more</span>` : '';
   const participantHtml = todo.participant_text ? `<div class="todo-participant">${escapeHtml(todo.participant_text)}</div>` : '';
+  const typeIconHtml = getTypeIconHtml(todo.type || null);
 
   return `<div class="todo-item${isUnread ? ' unread' : ''}" data-todo-id="${todo.id}" data-message-link="${escapeHtml(messageLink)}">
     <div class="todo-left-actions">
@@ -116,6 +140,7 @@ function renderTodoItemHtml(todo) {
       <div class="todo-meta">
         <span class="todo-date">${formatDate(todo.updated_at || todo.created_at)}</span>
         ${dueHtml} ${sourceHtml} ${secondaryHtml}
+        ${typeIconHtml ? `<span style="flex:1;min-width:4px;"></span>${typeIconHtml}` : ''}
       </div>
       ${tagsHtml}
     </div>
@@ -138,12 +163,13 @@ function buildTaskGroupHtml(group) {
     const displayText = isLong ? escapeHtml(text.substring(0, maxLen)) + '...' : escapeHtml(text);
     const fullAttr = isLong ? ` data-full-text="${escapeHtml(text)}"` : '';
     const vmHtml = isLong ? `<span class="view-more-inline" data-todo-id="${t.id}">View more</span>` : '';
+    const tTypeIconHtml = getTypeIconHtml(t.type || null);
     return `<div class="task-group-task-item todo-item${isUnread ? ' unread' : ''}" data-todo-id="${t.id}" data-message-link="${escapeHtml(taskLink)}">
       <div class="todo-left-actions"><div class="todo-checkbox" data-todo-id="${t.id}"></div></div>
       <div class="todo-content" style="flex:1;min-width:0;">
         ${t.task_title ? `<div class="todo-title">${escapeHtml(t.task_title)}</div>` : ''}
         <div class="todo-text${isLong ? ' truncated' : ''}"><span class="todo-text-content"${fullAttr}>${displayText}</span>${vmHtml}</div>
-        <div class="todo-meta"><span class="todo-date">${formatDate(t.updated_at || t.created_at)}</span>${srcHtml}${secHtml}</div>
+        <div class="todo-meta"><span class="todo-date">${formatDate(t.updated_at || t.created_at)}</span>${srcHtml}${secHtml}${tTypeIconHtml ? `<span style="flex:1;min-width:4px;"></span>${tTypeIconHtml}` : ''}</div>
         ${tagsHtml}
       </div>
     </div>`;
@@ -183,12 +209,13 @@ function buildSlackChannelGroupHtml(group) {
     const secHtml = buildSecondaryLinksHtml(t.secondary_links);
     const todoTags = (t.tags || []).filter(isValidTag);
     const tagsHtml = todoTags.length > 0 ? `<div class="todo-tags" style="margin-top:4px;">${todoTags.map(tg => `<span class="todo-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</span>`).join('')}</div>` : '';
+    const sTypeIconHtml = getTypeIconHtml(t.type || null);
     return `<div class="slack-channel-task-full todo-item${isUnread ? ' unread' : ''}" data-todo-id="${t.id}" data-message-link="${escapeHtml(taskLink)}">
       <div class="todo-left-actions"><div class="todo-checkbox" data-todo-id="${t.id}"></div></div>
       <div class="todo-content" style="flex:1;min-width:0;">
         ${t.task_title ? `<div class="todo-title">${escapeHtml(t.task_title)}</div>` : ''}
         <div class="todo-text${isLong ? ' truncated' : ''}"><span class="todo-text-content"${fullAttr}>${displayText}</span>${vmHtml}</div>
-        <div class="todo-meta"><span class="todo-date">${formatDate(t.updated_at || t.created_at)}</span>${srcHtml}${secHtml}</div>
+        <div class="todo-meta"><span class="todo-date">${formatDate(t.updated_at || t.created_at)}</span>${srcHtml}${secHtml}${sTypeIconHtml ? `<span style="flex:1;min-width:4px;"></span>${sTypeIconHtml}` : ''}</div>
         ${tagsHtml}
       </div>
     </div>`;
@@ -231,12 +258,13 @@ function buildTagGroupHtml(group) {
     const secHtml = buildSecondaryLinksHtml(t.secondary_links);
     const todoTags = (t.tags || []).filter(isValidTag);
     const tagsHtml = todoTags.length > 0 ? `<div class="todo-tags" style="margin-top:4px;">${todoTags.map(tg => `<span class="todo-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</span>`).join('')}</div>` : '';
+    const tgTypeIconHtml = getTypeIconHtml(t.type || null);
     return `<div class="tag-group-task-item todo-item${isUnread ? ' unread' : ''}" data-todo-id="${t.id}" data-message-link="${escapeHtml(taskLink)}">
       <div class="todo-left-actions"><div class="todo-checkbox" data-todo-id="${t.id}"></div></div>
       <div class="todo-content" style="flex:1;min-width:0;">
         ${t.task_title ? `<div class="todo-title">${escapeHtml(t.task_title)}</div>` : ''}
         <div class="todo-text${isLong ? ' truncated' : ''}"><span class="todo-text-content"${fullAttr}>${displayText}</span>${vmHtml}</div>
-        <div class="todo-meta"><span class="todo-date">${formatDate(t.updated_at || t.created_at)}</span>${srcHtml}${secHtml}</div>
+        <div class="todo-meta"><span class="todo-date">${formatDate(t.updated_at || t.created_at)}</span>${srcHtml}${secHtml}${tgTypeIconHtml ? `<span style="flex:1;min-width:4px;"></span>${tgTypeIconHtml}` : ''}</div>
         ${tagsHtml}
       </div>
     </div>`;
@@ -317,6 +345,8 @@ async function showMeetingDetailSlider(meetingId) {
 
   const closeOverlay = () => { overlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => overlay.remove(), 200); };
   overlay.querySelector('.transcript-close-btn').addEventListener('click', closeOverlay);
+  const escHandlerMeeting = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); document.removeEventListener('keydown', escHandlerMeeting, true); closeOverlay(); } };
+  document.addEventListener('keydown', escHandlerMeeting, true);
 
   try {
     const res = await fetch(WEBHOOK_URL, {
@@ -590,7 +620,13 @@ async function loadTodos() {
     hideLoader(container); displayActions(allTodos); updateBadge();
   } catch (e) { console.error('Error:', e); hideLoader(container); container.innerHTML = `<div class="empty-state"><h3>Error: ${e.message}</h3></div>`; }
 }
-function updateBadge() { try { chrome.runtime.sendMessage({ action: 'updateBadge', count: allTodos.filter(t => t.starred === 1 && t.status === 0).length }); } catch (e) { } }
+function updateBadge() {
+  try {
+    const actionUnread = allTodos.filter(t => t.starred === 1 && t.status === 0 && isTaskUnread(t.id) && !isInitialLoad).length;
+    const fyiUnread = allTodos.filter(t => t.starred !== 1 && t.status === 0 && isTaskUnread(t.id) && !isInitialLoad).length;
+    chrome.runtime.sendMessage({ type: 'updateBadge', actionUnread, fyiUnread, total: actionUnread + fyiUnread });
+  } catch (e) { }
+}
 
 // ==================== TASK ACTIONS ====================
 async function handleCheckbox(id, el) {
@@ -731,8 +767,16 @@ function showTranscriptSlider(todoId) {
   area.appendChild(overlay);
 
   // Close button
-  const closeOverlay = () => { overlay.style.animation = 'fadeOut 0.2s ease-out'; setTimeout(() => overlay.remove(), 200); };
+  const closeOverlay = () => { overlay.style.animation = 'fadeOut 0.2s ease-out'; document.removeEventListener('keydown', escHandlerTranscript, true); setTimeout(() => overlay.remove(), 200); };
   overlay.querySelector('.transcript-close-btn').addEventListener('click', closeOverlay);
+  const escHandlerTranscript = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      document.removeEventListener('keydown', escHandlerTranscript, true);
+      closeOverlay();
+    }
+  };
+  document.addEventListener('keydown', escHandlerTranscript, true);
 
   // ========== ATTACHMENTS ==========
   const attachBtn = overlay.querySelector('.transcript-attach-btn');
@@ -855,8 +899,8 @@ function showTranscriptSlider(todoId) {
       if (!res.ok) { resultsEl.style.display = 'none'; return; }
       let data = await res.json();
       if (!Array.isArray(data)) data = data.results || data.members || data.users || [];
-      // Normalize and filter to employees with emails
-      data = data.filter(r => r.type === 'employee' || (!r.type && r.user_email_ID));
+      // Normalize and filter to people with emails (employee or Direct Message types)
+      data = data.filter(r => r.type === 'employee' || r.type === 'Direct Message' || (!r.type && r.user_email_ID));
       data = data.map(r => ({ name: r.Full_Name || r['Full Name'] || r.full_name || r.name || r.user_email_ID || 'Unknown', email: r.user_email_ID || r.email || '', slack_id: r.user_slack_ID || r.slack_id || r.id || '' })).filter(r => r.email);
       if (!data.length) {
         if (query.includes('@')) {
@@ -1059,6 +1103,14 @@ function showTranscriptSlider(todoId) {
   replyInput.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendReply(); return; }
     if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); document.execCommand('insertLineBreak'); }
+    if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      // If mention dropdown is open, close it only
+      if (mentionDropdown && mentionDropdown.style.display !== 'none') { hideMentionDropdown(); return; }
+      // Otherwise close the whole slider
+      document.removeEventListener('keydown', escHandlerTranscript, true);
+      closeOverlay();
+    }
   });
 
   // ===== @mention autocomplete =====
@@ -1149,8 +1201,8 @@ function showTranscriptSlider(todoId) {
     if (e.key === 'ArrowDown') { e.preventDefault(); mentionSelectedIndex = Math.min(mentionSelectedIndex + 1, mentionResults.length - 1); updateMentionSelection(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); mentionSelectedIndex = Math.max(mentionSelectedIndex - 1, 0); updateMentionSelection(); }
     else if (e.key === 'Enter' || e.key === 'Tab') { if (mentionResults.length > 0) { e.preventDefault(); const s = mentionResults[mentionSelectedIndex]; insertMention(s.name || s.email, s.email || '', s.slack_id || ''); } }
-    else if (e.key === 'Escape') { e.preventDefault(); hideMentionDropdown(); }
-  }, true);
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideMentionDropdown(); }
+  });
 
   // Fetch transcript
   fetchTranscript(todoId, overlay, todo);

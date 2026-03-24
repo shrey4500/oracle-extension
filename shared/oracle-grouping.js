@@ -54,8 +54,7 @@
     const nonSlackTasks = [];
 
     tasks.forEach(task => {
-      const isDM = task.participant_text && task.participant_text.toLowerCase().startsWith('dm with');
-      if (isSlackLink(task.message_link) && task.participant_text && !isDM) {
+      if (isSlackLink(task.message_link) && task.participant_text) {
         const channelKey = task.participant_text.trim();
         if (!slackGroups[channelKey]) {
           slackGroups[channelKey] = {
