@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Oracle - Side Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: rgba(255, 255, 255, 0.97);
+            --bg-secondary: rgba(248, 249, 250, 0.5);
+            --bg-card: white;
+            --bg-hover: rgba(102, 126, 234, 0.05);
+            --text-primary: #2c3e50;
+            --text-secondary: #5d6d7e;
+            --text-muted: #7f8c8d;
+            --text-light: #95a5a6;
+            --border-color: rgba(225, 232, 237, 0.6);
+            --border-light: rgba(225, 232, 237, 0.5);
+            --accent-gradient: linear-gradient(45deg, #667eea, #764ba2);
+            --accent-color: #667eea;
+            --accent-hover: rgba(102, 126, 234, 0.1);
+        }
+        
+        body.dark-mode {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #1f2940;
+            --bg-hover: rgba(102, 126, 234, 0.15);
+            --text-primary: #e8e8e8;
+            --text-secondary: #b0b0b0;
+            --text-muted: #888;
+            --text-light: #666;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-light: rgba(255, 255, 255, 0.08);
+        }
+        
+        body { 
+            font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            width: 100%; min-height: 100vh; 
+            background: var(--bg-primary); 
+            color: var(--text-primary); 
+            overflow: hidden; 
+        }
+        
+        /* Contenteditable placeholder */
+        [contenteditable=true]:empty:before {
+            content: attr(placeholder);
+            color: #95a5a6;
+            pointer-events: none;
+            display: block;
+        }
+        body.dark-mode [contenteditable=true]:empty:before { color: #666; }
+        
+        .container { width: 100%; height: 100vh; background: var(--bg-primary); position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Header */
+        .header { 
+            display: flex; align-items: center; gap: 10px; 
+            padding: 10px 14px; 
+            background: var(--bg-primary); 
+            border-bottom: 1px solid var(--border-light); 
+            flex-shrink: 0; position: relative; z-index: 100;
+        }
+        .logo { width: 28px; height: 28px; background: linear-gradient(45deg, #667eea 0%, #764ba2 100%); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; font-weight: bold; flex-shrink: 0; }
+        h1 { margin: 0; color: var(--text-primary); font-size: 16px; font-weight: 600; background: linear-gradient(45deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.2; flex: 1; }
+        
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .header-icon-btn { 
+            width: 30px; height: 30px; 
+            background: var(--accent-hover); 
+            border: 1px solid var(--border-color);
+            border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; transition: all 0.3s; 
+            font-size: 14px; user-select: none; color: var(--text-secondary);
+        }
+        .header-icon-btn:hover { background: var(--accent-gradient); color: white; border-color: transparent; transform: scale(1.05); }
+        .header-icon-btn:active { transform: scale(0.95); }
+        .logout-btn { 
+            background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; 
+            font-size: 11px; padding: 4px 8px; border-radius: 6px; cursor: pointer; 
+        }
+        .logout-btn:hover { background: rgba(231,76,60,0.2); }
+        
+        /* Main content area */
+        .main-content-area { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* Column content - scrollable area */
+        .column-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; min-height: 0; }
+        
+        /* Containers */
+        .todos-container { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; position: relative; }
+        
+        /* Empty state */
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; text-align: center; padding: 20px; color: var(--text-light); }
+        .empty-state h3 { font-size: 14px; margin-bottom: 8px; color: var(--text-muted); font-weight: 600; }
+        .empty-state p { font-size: 12px; line-height: 1.4; opacity: 0.8; }
+        
+        /* Loader */
+        .loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-primary); display: flex; align-items: center; justify-content: center; z-index: 10; border-radius: 10px; opacity: 0.95; }
+        .spinner { width: 28px; height: 28px; border: 3px solid rgba(102, 126, 234, 0.2); border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        
+        /* Meetings Accordion */
+        .meetings-accordion { margin-bottom: 10px; border-radius: 8px; overflow: hidden; background: rgba(102, 126, 234, 0.04); border: 1px solid rgba(102, 126, 234, 0.15); flex-shrink: 0; }
+        body.dark-mode .meetings-accordion { background: rgba(102, 126, 234, 0.08); border-color: rgba(102, 126, 234, 0.25); }
+        .meetings-accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; cursor: pointer; background: rgba(102, 126, 234, 0.08); transition: all 0.2s ease; user-select: none; }
+        body.dark-mode .meetings-accordion-header { background: rgba(102, 126, 234, 0.15); }
+        .meetings-accordion-header:hover { background: rgba(102, 126, 234, 0.12); }
+        .meetings-accordion-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; color: var(--text-primary); }
+        .meetings-accordion.has-updates .meetings-accordion-title { color: #27ae60; }
+        body.dark-mode .meetings-accordion.has-updates .meetings-accordion-title { color: #2ecc71; }
+        .meetings-accordion-count { background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; }
+        .meetings-accordion-chevron { font-size: 10px; color: #667eea; transition: transform 0.3s ease; }
+        .meetings-accordion.open .meetings-accordion-chevron { transform: rotate(180deg); }
+        .meetings-accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .meetings-accordion.open .meetings-accordion-content { max-height: 350px; overflow-y: auto; }
+        .meetings-accordion.has-updates { background: rgba(39, 174, 96, 0.12); border-color: rgba(39, 174, 96, 0.4); }
+        body.dark-mode .meetings-accordion.has-updates { background: rgba(39, 174, 96, 0.15); border-color: rgba(39, 174, 96, 0.5); }
+        .meetings-accordion.has-updates .meetings-accordion-header { background: rgba(39, 174, 96, 0.2); }
+        
+        /* Meeting Date Tabs */
+        .meetings-date-tabs-container { padding: 8px 10px 6px; border-bottom: 1px solid var(--border-light); overflow-x: auto; scrollbar-width: thin; }
+        .meetings-date-tabs { display: flex; gap: 6px; white-space: nowrap; }
+        .meeting-date-tab { display: flex; flex-direction: column; align-items: center; min-width: 60px; padding: 6px 8px; background: rgba(46, 204, 113, 0.15); border: 2px solid rgba(46, 204, 113, 0.3); border-radius: 10px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+        .meeting-date-tab.active { background: rgba(46, 204, 113, 0.3); border-color: #27ae60; box-shadow: 0 2px 6px rgba(46, 204, 113, 0.25); }
+        .meeting-date-tab.has-updates { background: rgba(39, 174, 96, 0.5); border-color: #1e8449; }
+        .meeting-date-tab.has-updates .meeting-date-day, .meeting-date-tab.has-updates .meeting-date-label { color: #fff; }
+        .meeting-date-day { font-size: 9px; font-weight: 500; color: #27ae60; text-transform: uppercase; line-height: 1.2; }
+        body.dark-mode .meeting-date-day { color: #2ecc71; }
+        .meeting-date-label { font-size: 10px; font-weight: 600; color: #1e8449; margin-top: 1px; }
+        body.dark-mode .meeting-date-label { color: #58d68d; }
+        .meeting-date-count { font-size: 8px; font-weight: 600; color: white; background: #27ae60; padding: 1px 5px; border-radius: 6px; margin-top: 3px; }
+        
+        .meetings-date-content { display: none; padding: 6px 8px; }
+        .meetings-date-content.active { display: block; }
+        .meetings-list { padding: 0; display: flex; flex-direction: column; gap: 4px; }
+        .meeting-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border-color); transition: all 0.2s ease; }
+        .meeting-item.unread { background: rgba(241, 196, 15, 0.15); border-color: rgba(241, 196, 15, 0.4); }
+        body.dark-mode .meeting-item.unread { background: rgba(241, 196, 15, 0.12); border-color: rgba(241, 196, 15, 0.35); }
+        .meeting-item:hover { border-color: rgba(102, 126, 234, 0.3); }
+        .meeting-item.completing { animation: taskSlideOut 0.45s ease-in-out forwards; pointer-events: none; overflow: hidden; }
+        .meeting-checkbox { width: 14px; height: 14px; border: 2px solid rgba(102, 126, 234, 0.4); border-radius: 3px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+        .meeting-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .meeting-info { flex: 1; min-width: 0; }
+        .meeting-title { font-weight: 600; font-size: 11px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .meeting-time { font-size: 10px; color: #667eea; font-weight: 500; margin-top: 1px; }
+        .meeting-time.overdue { color: #e74c3c; }
+        .meeting-join-btn { display: inline-flex; align-items: center; gap: 3px; padding: 4px 8px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 5px; font-size: 9px; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; flex-shrink: 0; }
+        .meeting-join-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
+        .meeting-join-btn img { width: 12px; height: 12px; }
+        
+        /* Pending Updates Banner */
+        .pending-updates-banner { display: flex; align-items: center; justify-content: center; padding: 8px 12px; margin: 6px 0; background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15)); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 10px; cursor: pointer; transition: all 0.3s ease; animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .pending-updates-banner:hover { background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25)); border-color: rgba(102, 126, 234, 0.5); transform: scale(1.01); }
+        .pending-updates-banner.loading { pointer-events: none; opacity: 0.7; }
+        .pending-updates-content { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #667eea; }
+        body.dark-mode .pending-updates-content { color: #a0aeff; }
+        .pending-icon { font-size: 12px; animation: bounce 1s ease infinite; }
+        .pending-icon.spinning { animation: spin 1s linear infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+        .pending-count { background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+        body.dark-mode .pending-updates-banner { background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2)); border-color: rgba(102, 126, 234, 0.4); }
+        
+        /* Todo Items */
+        .todos-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 16px; }
+        .todo-item { 
+            display: flex; gap: 8px; padding: 8px 10px; 
+            background: var(--bg-card); border-radius: 8px; 
+            border: 1px solid var(--border-color); transition: all 0.2s; 
+            animation: fadeInUp 0.3s ease-out; cursor: pointer;
+        }
+        .todo-item.unread { background: linear-gradient(135deg, rgba(255, 243, 224, 0.6), rgba(255, 237, 213, 0.4)); border-color: rgba(255, 183, 77, 0.3); }
+        body.dark-mode .todo-item.unread { background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1)); border-color: rgba(255, 183, 77, 0.25); }
+        .todo-item:hover { border-color: rgba(102, 126, 234, 0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        body.dark-mode .todo-item:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+        .todo-item.completing { animation: taskSlideOut 0.45s ease-in-out forwards; pointer-events: none; overflow: hidden; }
+        @keyframes taskSlideOut { 0% { opacity: 1; transform: translateX(0); max-height: 200px; margin-bottom: 8px; } 40% { opacity: 0.3; transform: translateX(-30px); } 100% { opacity: 0; transform: translateX(-60px); max-height: 0; padding: 0; margin: 0; border: none; overflow: hidden; } }
+        
+        .todo-left-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+        .todo-checkbox { width: 16px; height: 16px; border: 2px solid rgba(102, 126, 234, 0.4); border-radius: 3px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; opacity: 0; transform: scale(0.8); }
+        .todo-item:hover .todo-checkbox, .todo-item.multi-selected .todo-checkbox { opacity: 1; transform: scale(1); }
+        .todo-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .todo-checkbox.checked { background: linear-gradient(45deg, #667eea, #764ba2); border-color: transparent; opacity: 1; transform: scale(1); }
+        .todo-star { cursor: pointer; font-size: 12px; transition: transform 0.2s; }
+        .todo-star:hover { transform: scale(1.2); }
+        .todo-content { flex: 1; min-width: 0; }
+        .todo-title { font-weight: 600; font-size: 12px; color: var(--text-primary); margin-bottom: 2px; }
+        .todo-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; position: relative; word-break: break-word; }
+        .todo-text-content { display: inline; }
+        .todo-text.truncated { display: block; overflow: hidden; position: relative; }
+        .todo-text.expanded { display: block; overflow: visible; }
+        .todo-text:not(.truncated):not(.expanded) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; position: relative; }
+        .todo-text .view-more-inline { color: #667eea; font-weight: 500; cursor: pointer; padding: 0 4px; padding-left: 20px; font-size: 11px; position: absolute; bottom: 0; right: 0; background: linear-gradient(to right, transparent, var(--bg-card, white) 18px); z-index: 1; }
+        body.dark-mode .todo-text .view-more-inline { background: linear-gradient(to right, transparent, var(--bg-card, #1a1a2e) 18px); }
+        .todo-item.unread .todo-text .view-more-inline { background: linear-gradient(to right, transparent, rgba(255, 243, 224, 1) 18px); }
+        body.dark-mode .todo-item.unread .todo-text .view-more-inline { background: linear-gradient(to right, transparent, rgba(50, 40, 20, 1) 18px); }
+        .todo-text .view-more-inline.view-less { color: #667eea; position: static; display: block; margin-top: 4px; padding: 0; background: transparent; }
+        .todo-text .view-more-inline:hover { text-decoration: underline; }
+        .todo-participant { font-size: 10px; color: #667eea; margin-top: 3px; font-weight: 500; }
+        .todo-meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; font-size: 9px; }
+        .todo-date { color: var(--text-light); }
+        .todo-due { padding: 1px 5px; border-radius: 3px; font-weight: 500; font-size: 9px; }
+        .todo-due:not(.overdue) { background: rgba(46, 204, 113, 0.1); color: #27ae60; }
+        .todo-due.overdue { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+        .todo-source { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 3px; background: var(--accent-hover); padding: 4px; }
+        .todo-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+        .todo-tag { background: rgba(102, 126, 234, 0.1); color: #667eea; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 500; cursor: pointer; }
+        .todo-tag:hover { background: rgba(102, 126, 234, 0.2); }
+        .todo-actions { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; opacity: 0; transition: opacity 0.2s; }
+        .todo-item:hover .todo-actions { opacity: 1; }
+        .todo-actions > div { cursor: pointer; font-size: 12px; padding: 3px 4px; border-radius: 3px; transition: all 0.2s; }
+        .todo-actions > div:hover { background: var(--accent-hover); }
+        
+        /* Multi-select styles */
+        .todo-item.multi-selected { background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1)) !important; border: 2px solid #667eea !important; }
+        .meeting-item.multi-selected { background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1)) !important; border: 2px solid #667eea !important; }
+        
+        /* Bulk action bar */
+        .bulk-action-bar { display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: linear-gradient(45deg, #667eea, #764ba2); padding: 10px 18px; border-radius: 10px; box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4); z-index: 1000; gap: 12px; align-items: center; }
+        .bulk-action-bar.show { display: flex; }
+        .bulk-count-display { color: white; font-weight: 600; font-size: 12px; }
+        .bulk-action-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; }
+        .bulk-action-btn:hover { background: rgba(255,255,255,0.3); }
+        .bulk-cancel-btn { background: transparent; border: none; color: rgba(255,255,255,0.8); cursor: pointer; font-size: 16px; padding: 2px 6px; }
+        
+        /* Task Group Styles */
+        .task-group { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 6px; overflow: hidden; transition: all 0.2s ease; }
+        .task-group:hover { border-color: rgba(102, 126, 234, 0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .task-group.unread { background: linear-gradient(135deg, rgba(255, 243, 224, 0.6), rgba(255, 237, 213, 0.4)); border-color: rgba(255, 183, 77, 0.3); }
+        body.dark-mode .task-group.unread { background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1)); border-color: rgba(255, 183, 77, 0.25); }
+        .task-group-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; transition: background 0.2s; }
+        .task-group-header:hover { background: var(--bg-hover); }
+        .task-group-checkbox { width: 16px; height: 16px; border: 2px solid rgba(102, 126, 234, 0.4); border-radius: 3px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; }
+        .task-group-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .task-group-checkbox.checked { background: linear-gradient(45deg, #667eea, #764ba2); border-color: transparent; }
+        .task-group-info { flex: 1; min-width: 0; }
+        .task-group-title { font-weight: 600; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-group-meta { display: flex; gap: 6px; align-items: center; margin-top: 2px; font-size: 10px; color: var(--text-muted); }
+        .task-group-count { color: #667eea; font-weight: 500; }
+        .task-group-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .task-group-learn-btn, .task-group-open-btn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: rgba(102, 126, 234, 0.1); border: none; border-radius: 5px; color: #667eea; cursor: pointer; transition: all 0.2s; }
+        .task-group-learn-btn:hover, .task-group-open-btn:hover { background: rgba(102, 126, 234, 0.2); }
+        .task-group-chevron { font-size: 9px; color: var(--text-muted); transition: transform 0.2s; }
+        .task-group.expanded .task-group-chevron { transform: rotate(180deg); }
+        .task-group-tasks { border-top: 1px solid var(--border-light); background: var(--bg-secondary); }
+        .task-group-task-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s; }
+        .task-group-task-item:last-child { border-bottom: none; }
+        .task-group-task-item:hover { background: var(--bg-hover); }
+        .task-group-task-item.unread { background: rgba(255, 243, 224, 0.4); }
+        body.dark-mode .task-group-task-item.unread { background: rgba(255, 183, 77, 0.1); }
+        .task-group-task-item.completing, .document-task-item.completing, .slack-channel-task-item.completing, .slack-channel-task-full.completing, .task-group.completing, .fyi-tag-group.completing, .slack-channel-group.completing { animation: taskSlideOut 0.45s ease-in-out forwards; pointer-events: none; overflow: hidden; }
+        .task-group-task-content { flex: 1; min-width: 0; }
+        .task-group-task-text { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+        .task-group-task-meta { font-size: 9px; color: var(--text-light); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+        .task-link-btn { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: rgba(102, 126, 234, 0.1); border-radius: 3px; color: #667eea; transition: all 0.2s; }
+        .task-link-btn:hover { background: rgba(102, 126, 234, 0.2); }
+        
+        /* Documents Accordion (FYI tab) */
+        .documents-accordion { margin-bottom: 10px; border-radius: 8px; overflow: hidden; background: rgba(76, 175, 80, 0.04); border: 1px solid rgba(76, 175, 80, 0.15); flex-shrink: 0; }
+        body.dark-mode .documents-accordion { background: rgba(76, 175, 80, 0.08); border-color: rgba(76, 175, 80, 0.25); }
+        .documents-accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; cursor: pointer; background: rgba(76, 175, 80, 0.08); transition: all 0.2s ease; user-select: none; }
+        body.dark-mode .documents-accordion-header { background: rgba(76, 175, 80, 0.15); }
+        .documents-accordion-header:hover { background: rgba(76, 175, 80, 0.12); }
+        .documents-accordion-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; color: var(--text-primary); }
+        .documents-accordion-count { background: linear-gradient(45deg, #4CAF50, #66BB6A); color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; }
+        .documents-accordion-chevron { font-size: 10px; color: #4CAF50; transition: transform 0.3s ease; }
+        .documents-accordion.open .documents-accordion-chevron { transform: rotate(180deg); }
+        .documents-accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .documents-accordion.open .documents-accordion-content { max-height: 350px; overflow-y: auto; }
+        .documents-accordion-list { padding: 6px; }
+        .document-accordion-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 4px; overflow: hidden; }
+        .document-accordion-item:last-child { margin-bottom: 0; }
+        .document-item-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; transition: background 0.2s; }
+        .document-item-header:hover { background: var(--bg-hover); }
+        .document-group-checkbox { width: 14px; height: 14px; border: 2px solid rgba(102, 126, 234, 0.4); border-radius: 3px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; }
+        .document-group-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .document-group-checkbox.checked { background: linear-gradient(45deg, #667eea, #764ba2); border-color: transparent; }
+        .document-item-info { flex: 1; min-width: 0; }
+        .document-item-title { font-weight: 600; font-size: 11px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .document-item-meta { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+        .document-learn-btn, .document-open-btn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: rgba(102, 126, 234, 0.1); border: none; border-radius: 5px; color: #667eea; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+        .document-learn-btn:hover { background: rgba(102, 126, 234, 0.2); }
+        .document-open-btn { background: rgba(76, 175, 80, 0.1); color: #4CAF50; }
+        .document-open-btn:hover { background: rgba(76, 175, 80, 0.2); }
+        .document-tasks-list { background: var(--bg-secondary); border-top: 1px solid var(--border-light); }
+        .document-task-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s; }
+        .document-task-item:last-child { border-bottom: none; }
+        .document-task-item:hover { background: var(--bg-hover); }
+        .document-task-checkbox { width: 16px; height: 16px; min-width: 16px; border: 2px solid var(--border-color); border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; transition: all 0.2s; margin-top: 2px; }
+        .document-task-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .document-task-checkbox.checked { background: linear-gradient(45deg, #667eea, #764ba2); border-color: transparent; }
+        .document-task-content { min-width: 0; }
+        .document-task-text { font-size: 10px; color: var(--text-secondary); line-height: 1.4; }
+        .document-task-meta { font-size: 9px; color: var(--text-light); margin-top: 3px; }
+        
+        /* Unread states for FYI accordion items */
+        .document-accordion-item.unread { background: linear-gradient(135deg, rgba(255, 243, 224, 0.6), rgba(255, 237, 213, 0.4)); border-left: 3px solid rgba(255, 183, 77, 0.6); }
+        body.dark-mode .document-accordion-item.unread { background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1)); border-left: 3px solid rgba(255, 183, 77, 0.4); }
+        .document-task-item.unread { background: linear-gradient(135deg, rgba(255, 243, 224, 0.6), rgba(255, 237, 213, 0.4)); border-left: 3px solid rgba(255, 183, 77, 0.6); }
+        body.dark-mode .document-task-item.unread { background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1)); border-left: 3px solid rgba(255, 183, 77, 0.4); }
+        .slack-channel-accordion-item.unread { background: linear-gradient(135deg, rgba(255, 243, 224, 0.6), rgba(255, 237, 213, 0.4)); border-left: 3px solid rgba(255, 183, 77, 0.6); }
+        body.dark-mode .slack-channel-accordion-item.unread { background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1)); border-left: 3px solid rgba(255, 183, 77, 0.4); }
+        
+        /* Slack Channels Accordion */
+        .slack-channels-accordion { margin-bottom: 10px; border-radius: 8px; overflow: hidden; background: rgba(74, 21, 75, 0.04); border: 1px solid rgba(74, 21, 75, 0.15); flex-shrink: 0; }
+        body.dark-mode .slack-channels-accordion { background: rgba(74, 21, 75, 0.08); border-color: rgba(74, 21, 75, 0.25); }
+        .slack-channels-accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; cursor: pointer; background: rgba(74, 21, 75, 0.08); transition: all 0.2s ease; user-select: none; }
+        body.dark-mode .slack-channels-accordion-header { background: rgba(74, 21, 75, 0.15); }
+        .slack-channels-accordion-header:hover { background: rgba(74, 21, 75, 0.12); }
+        .slack-channels-accordion-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; color: var(--text-primary); }
+        .slack-channels-accordion-count { background: linear-gradient(45deg, #4A154B, #611F69); color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 600; }
+        .slack-channels-accordion-chevron { font-size: 10px; color: #4A154B; transition: transform 0.3s ease; }
+        .slack-channels-accordion.open .slack-channels-accordion-chevron { transform: rotate(180deg); }
+        .slack-channels-accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .slack-channels-accordion.open .slack-channels-accordion-content { max-height: 350px; overflow-y: auto; }
+        .slack-channels-accordion-list { padding: 6px; }
+        .slack-channel-accordion-item { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 4px; overflow: hidden; }
+        .slack-channel-accordion-item:last-child { margin-bottom: 0; }
+        .slack-channel-item-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; transition: background 0.2s; }
+        .slack-channel-item-header:hover { background: var(--bg-hover); }
+        .slack-channel-group-checkbox { width: 14px; height: 14px; border: 2px solid rgba(102, 126, 234, 0.4); border-radius: 3px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; }
+        .slack-channel-group-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .slack-channel-group-checkbox.checked { background: linear-gradient(45deg, #667eea, #764ba2); border-color: transparent; }
+        .slack-channel-item-info { flex: 1; min-width: 0; }
+        .slack-channel-item-title { font-weight: 600; font-size: 11px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slack-channel-item-meta { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+        .slack-channel-open-btn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: rgba(74, 21, 75, 0.1); border-radius: 5px; color: #4A154B; transition: all 0.2s; flex-shrink: 0; }
+        .slack-channel-open-btn:hover { background: rgba(74, 21, 75, 0.2); }
+        .slack-channel-tasks-list { background: var(--bg-secondary); border-top: 1px solid var(--border-light); }
+        .slack-channel-task-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s; }
+        .slack-channel-task-item:last-child { border-bottom: none; }
+        .slack-channel-task-item:hover { background: var(--bg-hover); }
+        .slack-channel-task-checkbox { width: 16px; height: 16px; min-width: 16px; border: 2px solid var(--border-color); border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; transition: all 0.2s; margin-top: 2px; }
+        .slack-channel-task-checkbox:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .slack-channel-task-checkbox.checked { background: linear-gradient(45deg, #667eea, #764ba2); border-color: transparent; }
+        .slack-channel-task-content { min-width: 0; flex: 1; }
+        .slack-channel-task-text { font-size: 10px; color: var(--text-secondary); line-height: 1.4; }
+        .slack-channel-task-meta { font-size: 9px; color: var(--text-light); margin-top: 3px; }
+        
+        /* Slack Channel Group in Action tab */
+        .slack-channel-group { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 6px; overflow: hidden; transition: all 0.2s ease; }
+        .slack-channel-group:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+        .slack-channel-group.unread { background: rgba(74, 21, 75, 0.03); border-color: rgba(74, 21, 75, 0.2); }
+        body.dark-mode .slack-channel-group.unread { background: rgba(74, 21, 75, 0.12); border-color: rgba(74, 21, 75, 0.3); }
+        
+        /* Slack channel task items - full todo style */
+        .slack-channel-task-full { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--border-light); cursor: pointer; transition: background 0.2s; }
+        .slack-channel-task-full:last-child { border-bottom: none; }
+        .slack-channel-task-full:hover { background: var(--bg-hover); }
+        .slack-channel-task-full .todo-content { flex: 1; min-width: 0; }
+        .slack-channel-task-full .todo-title { font-weight: 600; font-size: 12px; color: var(--text-primary); margin-bottom: 3px; }
+        .slack-channel-task-full .todo-text { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 4px; position: relative; }
+        .slack-channel-task-full .todo-text.truncated, .slack-channel-task-full .todo-text:not(.truncated):not(.expanded) { max-height: calc(1.4em * 2); }
+        .slack-channel-task-full .todo-meta { font-size: 10px; color: var(--text-muted); }
+        .slack-channel-task-full .todo-star { font-size: 14px; color: #bdc3c7; cursor: pointer; transition: all 0.2s; }
+        .slack-channel-task-full .todo-star:hover { color: #f1c40f; }
+        .slack-channel-task-full .todo-star.active { color: #f1c40f; }
+        .slack-channel-task-full.unread .todo-text .view-more-inline { background: linear-gradient(to right, transparent, rgba(255, 243, 224, 1) 18px); }
+        body.dark-mode .slack-channel-task-full.unread .todo-text .view-more-inline { background: linear-gradient(to right, transparent, rgba(50, 40, 20, 1) 18px); }
+        .task-group-task-item.unread .todo-text .view-more-inline, .slack-channel-task-full.unread .todo-text .view-more-inline { background: linear-gradient(to right, transparent, rgba(255, 243, 224, 1) 18px); }
+        body.dark-mode .task-group-task-item.unread .todo-text .view-more-inline, body.dark-mode .slack-channel-task-full.unread .todo-text .view-more-inline { background: linear-gradient(to right, transparent, rgba(50, 40, 20, 1) 18px); }
+        
+        /* Slider overlay - covers the content area below header */
+        .slider-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-primary);
+            z-index: 50;
+            display: flex; flex-direction: column;
+            animation: slideInRight 0.25s ease-out;
+        }
+        .slider-overlay.closing { animation: slideOutRight 0.25s ease-out forwards; }
+        .slider-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+        .slider-back-btn { 
+            background: rgba(102, 126, 234, 0.1); border: none; color: #667eea; 
+            padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; 
+        }
+        .slider-back-btn:hover { background: rgba(102, 126, 234, 0.2); }
+        .slider-title { flex: 1; font-weight: 600; font-size: 14px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .slider-body { flex: 1; overflow-y: auto; padding: 14px; }
+        
+        /* Transcript styles for task detail slider */
+        .transcript-slider { background: var(--bg-primary); }
+        body.dark-mode .transcript-slider { background: #1f2940; }
+        .transcript-message-content { background: rgba(102, 126, 234, 0.06); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; line-height: 1.5; color: var(--text-primary); }
+        body.dark-mode .transcript-message-content { background: rgba(102, 126, 234, 0.15); color: #e8e8e8; }
+        body.dark-mode .transcript-message-content a { color: #8b9ff0 !important; }
+        
+        /* Skeleton loading */
+        .skeleton-container { display: flex; flex-direction: column; gap: 8px; }
+        .skeleton-item { display: flex; gap: 10px; padding: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 8px; }
+        body.dark-mode .skeleton-item { background: rgba(255,255,255,0.05); }
+        .skeleton-checkbox, .skeleton-star { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        body.dark-mode .skeleton-checkbox, body.dark-mode .skeleton-star { background: linear-gradient(90deg, #2a2a4a 25%, #3a3a5a 50%, #2a2a4a 75%); background-size: 200% 100%; }
+        .skeleton-content { flex: 1; }
+        .skeleton-text { height: 12px; width: 70%; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; margin-bottom: 6px; }
+        body.dark-mode .skeleton-text { background: linear-gradient(90deg, #2a2a4a 25%, #3a3a5a 50%, #2a2a4a 75%); background-size: 200% 100%; }
+        .skeleton-meta { height: 8px; width: 40%; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+        body.dark-mode .skeleton-meta { background: linear-gradient(90deg, #2a2a4a 25%, #3a3a5a 50%, #2a2a4a 75%); background-size: 200% 100%; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        
+        /* Scrollbar */
+        .column-content::-webkit-scrollbar, .slider-body::-webkit-scrollbar { width: 5px; }
+        .column-content::-webkit-scrollbar-track, .slider-body::-webkit-scrollbar-track { background: rgba(225, 232, 237, 0.2); border-radius: 3px; }
+        .column-content::-webkit-scrollbar-thumb, .slider-body::-webkit-scrollbar-thumb { background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 3px; }
+        
+        /* @Mention Dropdown */
+        .mention-dropdown { position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 6px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15); max-height: 200px; overflow-y: auto; z-index: 1000; animation: mentionSlideUp 0.2s ease-out; }
+        @keyframes mentionSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .mention-dropdown-header { padding: 8px 12px; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-light); background: var(--bg-secondary); border-radius: 10px 10px 0 0; }
+        .mention-dropdown-list { padding: 4px; }
+        .mention-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; }
+        .mention-item:hover, .mention-item.selected { background: var(--bg-hover); }
+        .mention-item.selected { background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1)); }
+        .mention-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(45deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+        .mention-info { flex: 1; min-width: 0; }
+        .mention-name { font-weight: 600; font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mention-email { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mention-tag { display: inline-flex; align-items: center; background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1)); color: #667eea; padding: 2px 6px; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+        body.dark-mode .mention-tag { background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.2)); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header - always visible -->
+        <div class="header">
+            <div class="logo">∞</div>
+            <h1>Oracle</h1>
+            <div class="header-right">
+                <div class="header-icon-btn" id="newMessageToggle" title="New Message">✚</div>
+                <div class="header-icon-btn" id="chatToggle" title="Oracle Assistant">💬</div>
+                <div class="header-icon-btn" id="darkModeToggle" title="Toggle dark mode">☀️</div>
+                <button class="logout-btn" id="logoutBtn" title="Logout" style="display: none;">⎋</button>
+            </div>
+        </div>
+        
+        <!-- Main content area -->
+        <div class="main-content-area" id="mainContentArea">
+            <div class="column-content">
+                <div class="todos-container" id="todosContainer">
+                    <div class="skeleton-container">
+                        <div class="skeleton-item"><div class="skeleton-checkbox"></div><div class="skeleton-content"><div class="skeleton-text"></div><div class="skeleton-meta"></div></div><div class="skeleton-star"></div></div>
+                        <div class="skeleton-item"><div class="skeleton-checkbox"></div><div class="skeleton-content"><div class="skeleton-text"></div><div class="skeleton-meta"></div></div><div class="skeleton-star"></div></div>
+                        <div class="skeleton-item"><div class="skeleton-checkbox"></div><div class="skeleton-content"><div class="skeleton-text"></div><div class="skeleton-meta"></div></div><div class="skeleton-star"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bulk Action Bar -->
+    <div class="bulk-action-bar" id="bulkActionBar">
+        <span class="bulk-count-display"><span id="selectedCount">0</span> selected</span>
+        <button class="bulk-action-btn" id="bulkMarkDoneBtn">✓ Done</button>
+        <button class="bulk-cancel-btn" id="bulkCancelBtn">×</button>
+    </div>
+    
+    <!-- Shared components (order matters — dependencies first) -->
+    <script src="ably.min.js"></script>
+    <script src="shared/oracle-common.js"></script>
+    <script src="shared/oracle-icons.js"></script>
+    <script src="shared/oracle-grouping.js"></script>
+    <script src="shared/oracle-message-format.js"></script>
+    <script src="shared/oracle-assistant.js"></script>
+    <script src="shared/oracle-new-message.js"></script>
+    <script src="shared/oracle-notes.js"></script>
+    <!-- Page-specific -->
+    <script src="sidepanel.js"></script>
+</body>
+</html>
